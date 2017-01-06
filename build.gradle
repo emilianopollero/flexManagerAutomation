@@ -1,0 +1,103 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "com.github.samueltbrown:gradle-cucumber-plugin:0.8"
+        classpath "info.cukes:cucumber-core:1.1.8"
+    }
+}
+
+ext {
+    groovyVersion = '2.4.3'
+    gebVersion = '0.10.0'
+    seleniumVersion = '2.52.0'
+    cucumberJvmVersion = '1.1.8'
+    chromeDriverVersion = '2.20'
+    tagsPropertiesDir = 'src/test/resources/tagsProperties'
+}
+
+apply plugin: "java"
+apply plugin: "groovy"
+apply plugin: "idea"
+apply plugin: "eclipse"
+apply plugin: "com.github.samueltbrown.cucumber"
+
+//apply from: "gradle/idea/idea.gradle"
+apply from: "gradle/ci.gradle"
+apply from: "gradle/osSpecificDownloads.gradle"
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "org.codehaus.groovy:groovy-all:$groovyVersion"
+    compile "org.gebish:geb-core:$gebVersion"
+    compile "org.seleniumhq.selenium:selenium-api:$seleniumVersion"
+
+    compile "info.cukes:cucumber-core:$cucumberJvmVersion"
+    compile "info.cukes:cucumber-groovy:$cucumberJvmVersion"
+
+    // drivers
+    compile "org.seleniumhq.selenium:selenium-firefox-driver:$seleniumVersion"
+    compile "org.seleniumhq.selenium:selenium-chrome-driver:$seleniumVersion"
+    compile "org.seleniumhq.selenium:selenium-support:$seleniumVersion"
+
+    compile(group: 'com.couchbase.client', name: 'couchbase-client', version: '1.4.4')
+    compile 'org.codehaus.groovy.modules.http-builder:http-builder:0.6'
+
+
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.2'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.0.9'
+    compile group: 'ch.qos.logback', name: 'logback-core', version: '1.0.9'
+}
+
+cucumber {
+    formats = ['pretty', 'html:build/reports/cucumber/', 'junit:build/reports/cucumber/cucumber.xml', 'json:build/reports/cucumber/cucumber.json']
+    // glueDirs: Steps, Hooks and Pages definitions (src/cucumber/resources is included automatically)
+    glueDirs = ["src/test/groovy/pages"]
+    // featureDirs: features files, step written in BDD
+    featureDirs = ["src/cucumber/features"]
+    dryRun = false
+    // tests tags
+    if (project.hasProperty('fTags')) {
+        def props = new Properties()
+        new File(tagsPropertiesDir + '/featuresTags.properties').withInputStream {
+            stream -> props.load(stream)
+        }
+        tags = props[project.fTags].split(';')
+    } else {
+        tags = project.tags ? project.tags.split(';') : []
+    }
+
+    jvmOptions {
+        def chromeDriverFilename = Os.isFamily(Os.FAMILY_WINDOWS) ? "chromedriver.exe" : "chromedriver"
+        systemProperty 'webdriver.chrome.driver', new File(unzipChromeDriver.outputs.files.singleFile, chromeDriverFilename).absolutePath
+        systemProperty "geb.env", System.getProperty("geb.env", "firefox")
+        systemProperty "username", System.getProperty("username")
+        systemProperty "roles", System.getProperty("roles")
+        systemProperty "env", System.getProperty("env", "labs")
+    }
+}
+
+tasks.cucumber.dependsOn << [setBrowserDriver]
+
+task copyTags(type: Copy) {
+    description = "Copy tags of failed tests to ReRun job"
+    //New jenkins setup use java 1.7 and needs the extra '/' on "from" dir
+    //If java 1.6 is used, remove '/'
+    from(System.getProperty("workspace") + '/' + tagsPropertiesDir)
+    into(tagsPropertiesDir)
+    include('reRunTests.properties')
+    delete('featuresTags.properties')
+    rename('reRunTests.properties', 'featuresTags.properties')
+}
+
+task wrapper(type: Wrapper) {
+    description = "Generates a new Gradle Wrapper"
+    group = "build"
+    gradleVersion = '2.1'
+}

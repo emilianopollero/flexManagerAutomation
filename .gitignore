@@ -1,0 +1,20 @@
+build
+flex-baseline-screenshots
+.DS_Store
+*.log
+
+# intellij idea
+*.iml
+*.ipr
+*.iws
+.idea
+bin
+classes
+
+#eclipse
+out
+.classpath
+.project
+.settings
+
+.gradle

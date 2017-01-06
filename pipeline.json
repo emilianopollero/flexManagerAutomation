@@ -1,0 +1,24 @@
+{
+  "name": "flex-automation-test",
+  "team": "Stratus",
+  "owner": "rokulkarni@expedia.com",
+  "appName": "flex-automation",
+  "steps": [
+    {
+      "params": "{}",
+      "name": "Smoke test",
+      "number": 1,
+      "action": {
+        "name": "ewedeployJenkins",
+        "type": "jenkins",
+        "environment": "test"
+      },
+      "actionId": "flex-test-smoke-prerelease",
+      "disabled": false,
+      "triggerType": "manual",
+      "description": "Run smoke tests in prod on canary"
+    }
+  ],
+  "description": null,
+  "disabled": false
+}
